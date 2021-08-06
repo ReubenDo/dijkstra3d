@@ -139,39 +139,25 @@ def distance_field_nx(G, seedind, shape):
 
 
 if __name__ == "__main__":
-
+    # Reproducibility purposes
     np.random.seed(0)
 
-    # Test image and manual extreme points
-    input_name = "data/vs_gk_1_t2.nii.gz"
-    input_extreme = "data/vs_gk_1_extremepoints.nii.gz"
-    input_pred = "data/vs_gk_1_pred.nii.gz"
+    # 3D volume parameters
+    shape = (42, 42, 20)
+    spacing = [1, 0.5, 2]
 
-    img = sitk.GetArrayFromImage(sitk.ReadImage(input_name)).transpose().astype(np.float32)
-    extreme = sitk.GetArrayFromImage(sitk.ReadImage(input_extreme)).transpose()                              
-    prob_background = sitk.GetArrayFromImage(sitk.ReadImage(input_pred)).transpose()
-
-    spacing = sitk.ReadImage(input_name).GetSpacing()
-    shape = img.shape
-
+    # Creating image
     img = np.arange(np.prod(shape))
     np.random.shuffle(img)
     img = img.reshape(shape)
 
-    # Sources (extreme points along the x axis) and target points 
-    source1 = np.argwhere(extreme==1).squeeze().tolist()
-    source2 = np.argwhere(extreme==2).squeeze().tolist()
-    target = np.argwhere(extreme==3).squeeze().tolist()
-
-    # Normalization factors used in InExtremIS
-    f_eucl = np.round(1.0 / np.max([spacing[k]*shape[k] for k in range(3)]), 2)
-    max_grad = np.max([abs(np.diff(img,axis=k)).max() for k in range(3)])
-    f_grad = np.round(1.0 / max_grad, 2)
+    # Sources (extreme points along the x axis)
+    source1 = [4, 17, 9]
+    source2 = [37, 9, 9]
 
     time_nx = []
     time_dijkstra = []
     for l_grad, l_eucl in [[0, 1], [1, 0], [1, 1]]:
-    #for l_grad, l_eucl in [[1, 0]]:
         for connectivity in [6, 18]:
             for sources in [[source1], [source1, source2]]:
                 # Field using NX
