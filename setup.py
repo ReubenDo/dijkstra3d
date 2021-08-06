@@ -20,7 +20,7 @@ if sys.platform == 'darwin':
 
 setuptools.setup(
   name="dijkstra3d",
-  version="1.10.0",
+  version="0.1.1",
   python_requires="~=3.6", # >= 3.6 < 4.0
   setup_requires=['numpy'],
   ext_modules=[
@@ -32,17 +32,15 @@ setuptools.setup(
       extra_compile_args=extra_compile_args,
     )
   ],
-  url="https://github.com/seung-lab/dijkstra3d/",
-  author="William Silversmith",
-  author_email="ws9@princeton.edu",
+  author="William Silversmith + Reuben Dorent",
+  author_email="ws9@princeton.edu + reuben.dorent@kcl.ac.uk",
   packages=setuptools.find_packages(),
   package_data={
     'dijkstra3d': [
       'LICENSE',
     ],
   },
-  description="Implementation of Dijkstra's Shortest Path algorithm on 3D images.",
-  long_description=read('README.md'),
+  description="Implementation of Dijkstra's Shortest Path algorithm on 3D images for InExtreMIS.",
   long_description_content_type="text/markdown",
   license = "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
   classifiers=[
