@@ -161,11 +161,11 @@ if __name__ == "__main__":
         for connectivity in [6, 18]:
             for sources in [[source1], [source1, source2]]:
                 # # Field using NX
-                # t = time.time()
-                # G = create_graph(img, spacing, l_grad, l_eucl, connectivity) 
-                # seedind = set(np.ravel_multi_index([[seed_position[k] for seed_position in sources] for k in range(3)], img.shape))
-                # field_nx = distance_field_nx(G, seedind, img.shape)
-                # time_nx.append(time.time() - t)
+                t = time.time()
+                G = create_graph(img, spacing, l_grad, l_eucl, connectivity) 
+                seedind = set(np.ravel_multi_index([[seed_position[k] for seed_position in sources] for k in range(3)], img.shape))
+                field_nx = distance_field_nx(G, seedind, img.shape)
+                time_nx.append(time.time() - t)
 
                 # Field using dijkstra3d
                 t = time.time()
@@ -180,7 +180,7 @@ if __name__ == "__main__":
                     l_prob=0.0)
                 time_dijkstra.append(time.time() - t)
 
-                #assert np.all(field_nx==field_dijkstra3d), f'error with {l_grad}, {l_eucl}, {connectivity}, {sources}'
+                assert np.all(field_nx==field_dijkstra3d), f'error with {l_grad}, {l_eucl}, {connectivity}, {sources}'
     
     print("Test passed")
     print(f"Mean time: NX {np.mean(time_nx)} - Dijkstra3d {np.mean(time_dijkstra)}")
