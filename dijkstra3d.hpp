@@ -281,7 +281,7 @@ struct HeapNodeCompare {
  *   source to target including source and target.
  */
 template <typename T, typename OUT = uint32_t>
-std::vector<OUT> dijkstra3d(
+std::pair<std::vector<OUT>, float> dijkstra3d(
     T* field, 
     float* prob,
     const size_t sx, const size_t sy, const size_t sz, 
@@ -294,8 +294,13 @@ std::vector<OUT> dijkstra3d(
 
   connectivity_check(connectivity);
 
+  float distance_target;
+  std::vector<OUT> path;
+
   if (source == target) {
-    return std::vector<OUT>{ static_cast<OUT>(source) };
+    distance_target = 0.0;
+    
+    return std::make_pair(std::vector<OUT>{ static_cast<OUT>(source) }, distance_target);
   }
 
   const size_t voxels = sx * sy * sz;
@@ -326,6 +331,8 @@ std::vector<OUT> dijkstra3d(
 
   int x, y, z;
   bool target_reached = false;
+
+  
 
   while (!queue.empty()) {
     loc = queue.top().value;
@@ -381,6 +388,7 @@ std::vector<OUT> dijkstra3d(
         // Communications of the ACM. Vol. 11. No. 3 March 1968. pp. 147-148
         if (neighboridx == target) {
           target_reached = true;
+          distance_target = dist[target];
           goto OUTSIDE;
         }
 
@@ -394,7 +402,8 @@ std::vector<OUT> dijkstra3d(
   OUTSIDE:
   delete []dist;
 
-  std::vector<OUT> path;
+  
+  
   // if voxel graph supplied, it's possible 
   // to never reach target.
   if (target_reached) { 
@@ -402,7 +411,7 @@ std::vector<OUT> dijkstra3d(
   }
   delete [] parents;
 
-  return path;
+  return std::make_pair(path, distance_target);
 }
 
 template <typename T>

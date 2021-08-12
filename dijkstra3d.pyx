@@ -24,6 +24,7 @@ from libc.stdint cimport (
 from cpython cimport array 
 import array
 import sys
+from libcpp.pair cimport pair
 
 from libcpp.vector cimport vector
 cimport numpy as cnp
@@ -41,7 +42,7 @@ class DimensionError(Exception):
   pass
 
 cdef extern from "dijkstra3d.hpp" namespace "dijkstra":
-  cdef vector[OUT] dijkstra3d[T,OUT](
+  cdef pair[vector[OUT], float] dijkstra3d[T,OUT](
     T* field, 
     float* prob,
     size_t sx, size_t sy, size_t sz, 
@@ -77,7 +78,7 @@ def format_voxel_graph(voxel_graph):
 def dijkstra(
   data, prob, source, target, connectivity=26, 
   spacing=(1,1,1), l_grad=0.0, l_eucl=1.0, l_prob=0.0,
-  voxel_graph=None
+  voxel_graph=None, return_distance=False
 ):
   """
   Perform dijkstra's shortest path algorithm
@@ -139,12 +140,15 @@ def dijkstra(
   cdef size_t rows = data.shape[1]
   cdef size_t depth = data.shape[2]
 
-  path = _execute_dijkstra(
+  path, dists = _execute_dijkstra(
     data, prob, source, target, connectivity, spacing,
     l_grad, l_eucl, l_prob
   )
 
-  return _path_to_point_cloud(path, dims, rows, cols)
+  if return_distance:
+    return _path_to_point_cloud(path, dims, rows, cols), dists
+  else:
+    return _path_to_point_cloud(path, dims, rows, cols)
 
 def _validate_coord(data, coord):
   dims = len(data.shape)
@@ -214,6 +218,9 @@ def _execute_dijkstra(
 
   cdef vector[uint32_t] output32
   cdef vector[uint64_t] output64
+  cdef float dist_target
+  cdef pair[vector[uint32_t], float] o32
+  cdef pair[vector[uint64_t], float] o64
 
   sixtyfourbit = data.size > np.iinfo(np.uint32).max
 
@@ -227,7 +234,7 @@ def _execute_dijkstra(
   if dtype == np.float32:
     arr_memviewfloat = data
     if sixtyfourbit:
-      output64 = dijkstra3d[float, uint64_t](
+      o64 = dijkstra3d[float, uint64_t](
         &arr_memviewfloat[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -237,8 +244,10 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output64 = o64.first 
+      dist_target = o64.second
     else:
-      output32 = dijkstra3d[float, uint32_t](
+      o32 = dijkstra3d[float, uint32_t](
         &arr_memviewfloat[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -248,10 +257,12 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output32 = o32.first 
+      dist_target = o32.second
   elif dtype == np.float64:
     arr_memviewdouble = data
     if sixtyfourbit:
-      output64 = dijkstra3d[double, uint64_t](
+      o64 = dijkstra3d[double, uint64_t](
         &arr_memviewdouble[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -261,8 +272,10 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output64 = o64.first 
+      dist_target = o64.second
     else:
-      output32 = dijkstra3d[double, uint32_t](
+      o32 = dijkstra3d[double, uint32_t](
         &arr_memviewdouble[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -272,10 +285,12 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output32 = o32.first 
+      dist_target = o32.second
   elif dtype in (np.int64, np.uint64):
     arr_memview64 = data.astype(np.uint64)
     if sixtyfourbit:
-      output64 = dijkstra3d[uint64_t, uint64_t](
+      o64 = dijkstra3d[uint64_t, uint64_t](
         &arr_memview64[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -285,8 +300,10 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output64 = o64.first 
+      dist_target = o64.second
     else:
-      output32 = dijkstra3d[uint64_t, uint32_t](
+      o32 = dijkstra3d[uint64_t, uint32_t](
         &arr_memview64[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -296,10 +313,12 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output32 = o32.first 
+      dist_target = o32.second
   elif dtype in (np.int32, np.uint32):
     arr_memview32 = data.astype(np.uint32)
     if sixtyfourbit:
-      output64 = dijkstra3d[uint32_t, uint64_t](
+      o64 = dijkstra3d[uint32_t, uint64_t](
         &arr_memview32[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -309,8 +328,10 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output64 = o64.first 
+      dist_target = o64.second
     else:
-      output32 = dijkstra3d[uint32_t, uint32_t](
+      o32 = dijkstra3d[uint32_t, uint32_t](
         &arr_memview32[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -320,10 +341,12 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output32 = o32.first 
+      dist_target = o32.second
   elif dtype in (np.int16, np.uint16):
     arr_memview16 = data.astype(np.uint16)
     if sixtyfourbit:
-      output64 = dijkstra3d[uint16_t, uint64_t](
+      o64 = dijkstra3d[uint16_t, uint64_t](
         &arr_memview16[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -333,8 +356,10 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output64 = o64.first 
+      dist_target = o64.second
     else:
-      output32 = dijkstra3d[uint16_t, uint32_t](
+      o32 = dijkstra3d[uint16_t, uint32_t](
         &arr_memview16[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -344,10 +369,12 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output32 = o32.first 
+      dist_target = o32.second
   elif dtype in (np.int8, np.uint8, bool):
     arr_memview8 = data.astype(np.uint8)
     if sixtyfourbit:
-      output64 = dijkstra3d[uint8_t, uint64_t](
+      o64 = dijkstra3d[uint8_t, uint64_t](
         &arr_memview8[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -357,8 +384,10 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output64 = o64.first 
+      dist_target = o64.second
     else:
-      output32 = dijkstra3d[uint8_t, uint32_t](
+      o32 = dijkstra3d[uint8_t, uint32_t](
         &arr_memview8[0,0,0],
         &prob_memviewfloat[0,0,0],
         sx, sy, sz,
@@ -368,6 +397,10 @@ def _execute_dijkstra(
         connectivity,
         voxel_graph_ptr
       )
+      output32 = o32.first 
+      dist_target = o32.second
+      
+  
 
   cdef uint32_t* output_ptr32
   cdef uint64_t* output_ptr64
@@ -390,7 +423,7 @@ def _execute_dijkstra(
     buf = bytearray(vec_view32[:])
     output = np.frombuffer(buf, dtype=np.uint32)
 
-  return output[::-1]
+  return output[::-1], dist_target
 
 
 def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, l_eucl, l_prob, voxel_graph):
