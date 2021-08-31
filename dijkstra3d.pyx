@@ -611,6 +611,7 @@ def distance_field(data, prob, source, connectivity=26, spacing=(1,1,1), l_grad=
     voxel_graph = format_voxel_graph(voxel_graph)
 
   data = np.asfortranarray(data)
+  prob = np.asfortranarray(prob)
 
   field = _execute_distance_field(data, prob, source, connectivity, spacing, l_grad, l_eucl, l_prob, voxel_graph)
   if dims < 3:

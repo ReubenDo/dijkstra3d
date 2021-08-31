@@ -475,7 +475,7 @@ float* distance_field3d(
         // data from RAM b/c the annotated lines below
         // have 30-50% cache miss.
         DIJKSTRA_3D_PREFETCH_26WAY(field, next_loc)
-        DIJKSTRA_3D_PREFETCH_26WAY(prob, loc)
+        DIJKSTRA_3D_PREFETCH_26WAY(prob, next_loc)
         DIJKSTRA_3D_PREFETCH_26WAY(dist, next_loc)
       }
     }
