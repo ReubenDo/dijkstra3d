@@ -403,7 +403,7 @@ std::pair<std::vector<OUT>, float> dijkstra3d(
         if (neighboridx == target) {
           target_reached = true;
           distance_target = dist[target];
-          goto OUTSIDE;
+          // goto OUTSIDE;
         }
 
         queue.emplace(dist[neighboridx], neighboridx);
@@ -413,7 +413,7 @@ std::pair<std::vector<OUT>, float> dijkstra3d(
     dist[loc] *= -1;
   }
 
-  OUTSIDE:
+  // OUTSIDE:
   delete []dist;
 
   
