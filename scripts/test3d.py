@@ -17,6 +17,8 @@ def ewf( indsource, indtarget, edgelength2, l_grad, l_eucl):
     dist = l_eucl*edgelength2 + l_grad*abs(img.ravel()[indsource]-img.ravel()[indtarget])
     return dist
 
+def s(a, b):
+    return (a*a + b*b)**(1/2)
 
 def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
     
@@ -66,7 +68,7 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
         # diagonal (x,y,z)-->(x+1,y+1,z)
         ind1 = np.ravel_multi_index([xind[:-1,:-1,:].ravel(), yind[:-1,:-1,:].ravel(), zind[:-1,:-1,:].ravel()], data.shape)
         ind2 = np.ravel_multi_index([xind[1:,1:,:].ravel(), yind[1:,1:,:].ravel(), zind[1:,1:,:].ravel()], data.shape)
-        dist = ewf(ind1, ind2, spacing[0] + spacing[1], l_grad, l_eucl)
+        dist = ewf(ind1, ind2, s(spacing[0], spacing[1]), l_grad, l_eucl)
         d1cm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         d1cm = spaddtsp(d1cm)
@@ -74,7 +76,7 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
         # diagonal (x,y,z)-->(x+1,y-1,z)
         ind1 = np.ravel_multi_index([xind[1:,:-1,:].ravel(), yind[1:,:-1,:].ravel(), zind[1:,:-1,:].ravel()], data.shape)
         ind2 = np.ravel_multi_index([xind[:-1,1:,:].ravel(), yind[:-1,1:,:].ravel(), zind[:-1,1:,:].ravel()], data.shape)
-        dist = ewf(ind1, ind2, spacing[0] + spacing[1], l_grad, l_eucl)
+        dist = ewf(ind1, ind2, s(spacing[0], spacing[1]), l_grad, l_eucl)
         d2cm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         d2cm = spaddtsp(d2cm)
@@ -82,7 +84,7 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
         # diagonal (x,y,z)-->(x+1,y,z+1)
         ind1 = np.ravel_multi_index([xind[:-1,:,:-1].ravel(), yind[:-1,:,:-1].ravel(), zind[:-1,:,:-1].ravel()], data.shape)
         ind2 = np.ravel_multi_index([xind[1:,:,1:].ravel(), yind[1:,:,1:].ravel(), zind[1:,:,1:].ravel()], data.shape)
-        dist = ewf(ind1, ind2, spacing[0] + spacing[2], l_grad, l_eucl)
+        dist = ewf(ind1, ind2, s(spacing[0], spacing[2]), l_grad, l_eucl)
         d1lm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         d1lm = spaddtsp(d1lm)
@@ -90,7 +92,7 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
         # diagonal (x,y,z)-->(x+1,y,z-1)
         ind1 = np.ravel_multi_index([xind[1:,:,:-1].ravel(), yind[1:,:,:-1].ravel(), zind[1:,:,:-1].ravel()], data.shape)
         ind2 = np.ravel_multi_index([xind[:-1,:,1:].ravel(), yind[:-1,:,1:].ravel(), zind[:-1,:,1:].ravel()], data.shape)
-        dist = ewf(ind1, ind2, spacing[0] + spacing[2], l_grad, l_eucl)
+        dist = ewf(ind1, ind2, s(spacing[0], spacing[2]), l_grad, l_eucl)
         d2lm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         d2lm = spaddtsp(d2lm)
@@ -98,7 +100,7 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
         # diagonal (x,y,z)-->(x,y+1,z+1)
         ind1 = np.ravel_multi_index([xind[:,:-1,:-1].ravel(), yind[:,:-1,:-1].ravel(), zind[:,:-1,:-1].ravel()], data.shape)
         ind2 = np.ravel_multi_index([xind[:,1:,1:].ravel(), yind[:,1:,1:].ravel(), zind[:,1:,1:].ravel()], data.shape)
-        dist = ewf(ind1, ind2, spacing[1] + spacing[2], l_grad, l_eucl)
+        dist = ewf(ind1, ind2, s(spacing[1], spacing[2]), l_grad, l_eucl)
         l1cm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         l1cm = spaddtsp(l1cm)
@@ -106,7 +108,7 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
         # diagonal (x,y,z)-->(x, y+1,z-1)
         ind1 = np.ravel_multi_index([xind[:,:-1,1:].ravel(), yind[:,:-1,1:].ravel(), zind[:,:-1,1:].ravel()], data.shape)
         ind2 = np.ravel_multi_index([xind[:,1:,:-1].ravel(), yind[:,1:,:-1].ravel(), zind[:,1:,:-1].ravel()], data.shape)
-        dist = ewf(ind1, ind2, spacing[1] + spacing[2], l_grad, l_eucl)
+        dist = ewf(ind1, ind2, s(spacing[1], spacing[2]), l_grad, l_eucl)
         l2cm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         l2cm = spaddtsp(l2cm)
@@ -144,7 +146,10 @@ if __name__ == "__main__":
 
     # 3D volume parameters
     shape = (42, 42, 20)
-    spacing = [1, 0.5, 2]
+    spacing = [1., 1., 1.]
+
+    # Tolerance
+    epsilon = 1e-5
 
     # Creating image
     img = np.arange(np.prod(shape))
@@ -153,13 +158,13 @@ if __name__ == "__main__":
 
     # Sources (extreme points along the x axis)
     source1 = [4, 17, 9]
-    source2 = [37, 9, 9]
+    source2 = [37, 9, 5]
 
     time_nx = []
     time_dijkstra = []
-    for l_grad, l_eucl in [[0, 1], [1, 0], [1, 1]]:
-        for connectivity in [6, 18]:
-            for sources in [[source1], [source1, source2]]:
+    for l_grad, l_eucl in [[0, 1], [1, 0], [1, 1]]: # Test different configs
+        for connectivity in [6, 18]: # Test different connectivity
+            for sources in [[source1], [source1, source2]]: # Test 1 or multiple source points
                 # # Field using NX
                 t = time.time()
                 G = create_graph(img, spacing, l_grad, l_eucl, connectivity) 
@@ -180,7 +185,9 @@ if __name__ == "__main__":
                     l_prob=0.0)
                 time_dijkstra.append(time.time() - t)
 
-                assert np.all(field_nx==field_dijkstra3d), f'error with {l_grad}, {l_eucl}, {connectivity}, {sources}'
+                relative_gap = abs(field_nx-field_dijkstra3d)/(field_nx+1e-6)
+
+                assert  np.max(relative_gap)<epsilon, f'error with {l_grad}, {l_eucl}, {connectivity}, {sources}'
     
     print("Test passed")
     print(f"Mean time: NX {np.mean(time_nx)} - Dijkstra3d {np.mean(time_dijkstra)}")

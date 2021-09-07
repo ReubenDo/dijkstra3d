@@ -169,6 +169,16 @@ inline void compute_neighborhood(
 }
 
 
+// helper function to compute 2D anisotropy ("_s" = "square")
+inline float _s(const float wa, const float wb) {
+  return sqrt(wa * wa + wb * wb);
+}
+
+// helper function to compute 3D anisotropy ("_c" = "cube")
+inline float _c(const float wa, const float wb, const float wc) {
+  return sqrt(wa * wa + wb * wb + wc * wc);
+}
+
 inline void compute_eucl_distance(
   float* eucl_distance, 
   const float dx, const float dy, const float dz,
@@ -185,34 +195,38 @@ inline void compute_eucl_distance(
   // 18-hood
 
   // xy diagonals
-  eucl_distance[6] = dx + dy; // up-left
-  eucl_distance[7] = dx + dy; // up-right
-  eucl_distance[8] = dx + dy; // down-left
-  eucl_distance[9] = dx + dy; // down-right
+  eucl_distance[6] = _s(dx, dy); // up-left
+  eucl_distance[7] = _s(dx, dy); // up-right
+  eucl_distance[8] = _s(dx, dy); // down-left
+  eucl_distance[9] = _s(dx, dy); // down-right
+
 
   // yz diagonals
-  eucl_distance[10] = dy + dz; // up-left
-  eucl_distance[11] = dy + dz; // up-right
-  eucl_distance[12] = dy + dz; // down-left
-  eucl_distance[13] = dy + dz; // down-right
+  eucl_distance[10] = _s(dy, dz); // up-left
+  eucl_distance[11] = _s(dy, dz); // up-right
+  eucl_distance[12] = _s(dy, dz); // down-left
+  eucl_distance[13] = _s(dy, dz); // down-right
+
+
 
   // xz diagonals
-  eucl_distance[14] = dx + dz; // up-left
-  eucl_distance[15] = dx + dz; // up-right
-  eucl_distance[16] = dx + dz; // down-left
-  eucl_distance[17] = dx + dz; // down-right
+  eucl_distance[14] = _s(dx, dz); // up-left
+  eucl_distance[15] = _s(dx, dz); // up-right
+  eucl_distance[16] = _s(dx, dz); // down-left
+  eucl_distance[17] = _s(dx, dz); // down-right
+
 
   // 26-hood
 
   // Now the eight corners of the cube
-  eucl_distance[18] = dx + dy + dz;
-  eucl_distance[19] = dx + dy + dz;
-  eucl_distance[20] = dx + dy + dz;
-  eucl_distance[21] = dx + dy + dz;
-  eucl_distance[22] = dx + dy + dz;
-  eucl_distance[23] = dx + dy + dz;
-  eucl_distance[24] = dx + dy + dz;
-  eucl_distance[25] = dx + dy + dz;
+  eucl_distance[18] = _c(dx, dy, dz);
+  eucl_distance[19] = _c(dx, dy, dz);
+  eucl_distance[20] = _c(dx, dy, dz);
+  eucl_distance[21] = _c(dx, dy, dz);
+  eucl_distance[22] = _c(dx, dy, dz);
+  eucl_distance[23] = _c(dx, dy, dz);
+  eucl_distance[24] = _c(dx, dy, dz);
+  eucl_distance[25] = _c(dx, dy, dz);
 }
 
 
@@ -374,7 +388,7 @@ std::pair<std::vector<OUT>, float> dijkstra3d(
       neighboridx = loc + neighborhood[i];
       delta = w_grad * abs(static_cast<float>(field[neighboridx]) - static_cast<float>(field[loc])); // high cache miss
       delta += w_eucl * eucl_distance[i];
-      delta += w_prob * static_cast<float>(prob[neighboridx]) ;
+      delta += w_prob / 2. * (static_cast<float>(prob[neighboridx]) + static_cast<float>(prob[loc])) ;
 
 
       // Visited nodes are negative and thus the current node
@@ -501,7 +515,7 @@ float* distance_field3d(
       neighboridx = loc + neighborhood[i];
       delta = w_grad * abs(static_cast<float>(field[neighboridx]) - static_cast<float>(field[loc])); // high cache miss
       delta += w_eucl * eucl_distance[i];
-      delta += w_prob * static_cast<float>(prob[neighboridx]) ;
+      delta += w_prob / 2. * (static_cast<float>(prob[neighboridx]) + static_cast<float>(prob[loc]));
 
       // Visited nodes are negative and thus the current node
       // will always be less than as field is filled with non-negative
