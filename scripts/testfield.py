@@ -9,22 +9,6 @@ import dijkstra3d
 import numpy as np
 import time
 
-
-def ewf(first, second, img, l_grad, l_eucl, spacing):
-    img_first = img[first[0], first[1], first[2]]
-    img_second = img[second[0], second[1], second[2]]
-
-    first = [float(k) for k in first]
-    second = [float(k) for k in second]
-    
-    edgelength2 = [spacing[i]*abs(first[i]-second[i]) for  i in range(3)]
-    edgelength2 = np.sqrt(np.sum([k**2 for k in edgelength2]))
-    dist = l_eucl*edgelength2 + l_grad*abs(img_first-img_second)
-
-
-    return dist
-
-
 if __name__ == "__main__":
     # Reproducibility purposes
     np.random.seed(0)
