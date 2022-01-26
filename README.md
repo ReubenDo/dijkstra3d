@@ -5,7 +5,7 @@ Dijkstra's Shortest Path variants for 6, 18, and 26-connected 3D Image Volumes o
 Code based on [dijkstra3d](https://github.com/seung-lab/dijkstra3d).
 
 Let be given a path between a and b (x0 = a, x1, ··· , xn−1, xn = b). The length of the path is:
-![image](https://user-images.githubusercontent.com/17268715/128386608-5c15bb25-cafc-4ca5-ba32-9e44cc3b9421.png)
+![image](https://user-images.githubusercontent.com/17268715/132381932-b63f752d-8a18-4130-bc41-274d7170416c.png)
 where p(xk) is the pseudo-probability that the voxel xk is part of the background.
 
 ```python
