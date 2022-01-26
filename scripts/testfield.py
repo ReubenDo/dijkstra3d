@@ -16,14 +16,15 @@ if __name__ == "__main__":
     # 3D volume parameters
     shape = (42, 42, 20)
     spacing = [1., 0.5, 2.]
+    channels = 3
 
     # Tolerange
     epsilon = 1e-5
 
     # Creating image
-    img = np.arange(np.prod(shape))
+    img = np.arange(channels*np.prod(shape))
     np.random.shuffle(img)
-    img = img.reshape(shape).astype(np.float32)
+    img = img.reshape((channels,)+shape).astype(np.float32)
 
     # Sources (extreme points along the x axis)
     source = [4, 17, 9]
@@ -34,7 +35,7 @@ if __name__ == "__main__":
             # Length using path
             path, length_path = dijkstra3d.dijkstra(
                 data=img,
-                prob=np.zeros_like(img),
+                prob=np.zeros(shape),
                 source=source, 
                 target=target,
                 connectivity=connectivity, 
@@ -47,7 +48,7 @@ if __name__ == "__main__":
             # Length using Field
             field_dijkstra3d = dijkstra3d.distance_field(
                 data=img,
-                prob=np.zeros_like(img),
+                prob=np.zeros(shape),
                 source=source, 
                 connectivity=connectivity, 
                 spacing=spacing, 

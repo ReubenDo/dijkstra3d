@@ -26,6 +26,9 @@ prob_background = sitk.GetArrayFromImage(sitk.ReadImage(input_pred)).transpose()
 spacing = sitk.ReadImage(input_name).GetSpacing()
 shape = img.shape
 
+# Adding channel (first axis)
+img = img[None,...] 
+
 # Source and target points (extreme points along the x axis)
 source = np.argwhere(extreme==1).squeeze().tolist()
 target = np.argwhere(extreme==2).squeeze().tolist()

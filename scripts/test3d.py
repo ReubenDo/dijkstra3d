@@ -14,7 +14,11 @@ import time
 
 # Choose a edge weight function
 def ewf( indsource, indtarget, edgelength2, l_grad, l_eucl):
-    dist = l_eucl*edgelength2 + l_grad*abs(img.ravel()[indsource]-img.ravel()[indtarget])
+    nb_voxels = np.prod(img.shape[1:])
+    nb_channels = img.shape[0]
+    reshape_size= (nb_channels,nb_voxels)
+    l1_distance = abs(img.reshape(reshape_size)[:,indsource]-img.reshape(reshape_size)[:,indtarget]).sum(0)
+    dist = l_eucl*edgelength2 + l_grad*l1_distance
     return dist
 
 def s(a, b):
@@ -25,7 +29,7 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
     assert connectivity in (6, 18, 26), "connectivity should be in (6, 18, 26)"
 
     # Number of voxels
-    N = np.prod(data.shape)
+    N = np.prod(data.shape[1:])
 
     # sparse addition may drop explicit zeros unless a slow dok format is used...
     # this should be easy to fix
@@ -36,27 +40,27 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
 
 
     # Get basic indices to through the input image
-    xind, yind, zind = np.mgrid[0:data.shape[0], 0:data.shape[1], 0:data.shape[2]]
+    xind, yind, zind = np.mgrid[0:data.shape[1], 0:data.shape[2], 0:data.shape[3]]
 
     # (x,y,z)-->(x+1,y,z)
-    ind1 = np.ravel_multi_index([xind[:-1,:,:].ravel(), yind[:-1,:,:].ravel(), zind[:-1,:,:].ravel()], data.shape)
-    ind2 = np.ravel_multi_index([xind[1:,:, :].ravel(), yind[1:,:,:].ravel(), zind[1:,:,:].ravel()], data.shape)
+    ind1 = np.ravel_multi_index([xind[:-1,:,:].ravel(), yind[:-1,:,:].ravel(), zind[:-1,:,:].ravel()], data.shape[1:])
+    ind2 = np.ravel_multi_index([xind[1:,:, :].ravel(), yind[1:,:,:].ravel(), zind[1:,:,:].ravel()], data.shape[1:])
     dist = ewf(ind1, ind2, spacing[0], l_grad, l_eucl)
     bcm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
     # symmetrise this edge type
     bcm = spaddtsp(bcm)
 
     # (x,y,z)-->(x,y+1,z)
-    ind1 = np.ravel_multi_index([xind[:,:-1,:].ravel(), yind[:,:-1,:].ravel(), zind[:,:-1,:].ravel()], data.shape)
-    ind2 = np.ravel_multi_index([xind[:,1:,:].ravel(), yind[:,1:,:].ravel(), zind[:,1:,:].ravel()], data.shape)
+    ind1 = np.ravel_multi_index([xind[:,:-1,:].ravel(), yind[:,:-1,:].ravel(), zind[:,:-1,:].ravel()], data.shape[1:])
+    ind2 = np.ravel_multi_index([xind[:,1:,:].ravel(), yind[:,1:,:].ravel(), zind[:,1:,:].ravel()], data.shape[1:])
     dist = ewf(ind1, ind2, spacing[1], l_grad, l_eucl)
     rcm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
     # symmetrise this edge type
     rcm = spaddtsp(rcm)
 
     # (x,y,z)-->(x,y,z+1)
-    ind1 = np.ravel_multi_index([xind[:,:,:-1].ravel(), yind[:,:,:-1].ravel(), zind[:,:,:-1].ravel()], data.shape)
-    ind2 = np.ravel_multi_index([xind[:,:,1:].ravel(), yind[:,:,1:].ravel(), zind[:,:,1:].ravel()], data.shape)
+    ind1 = np.ravel_multi_index([xind[:,:,:-1].ravel(), yind[:,:,:-1].ravel(), zind[:,:,:-1].ravel()], data.shape[1:])
+    ind2 = np.ravel_multi_index([xind[:,:,1:].ravel(), yind[:,:,1:].ravel(), zind[:,:,1:].ravel()],data.shape[1:])
     dist = ewf(ind1, ind2, spacing[2], l_grad, l_eucl)
     lcm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
     # symmetrise this edge type
@@ -66,48 +70,48 @@ def create_graph(data, spacing, l_grad, l_eucl, connectivity=18):
     
     if connectivity>6:
         # diagonal (x,y,z)-->(x+1,y+1,z)
-        ind1 = np.ravel_multi_index([xind[:-1,:-1,:].ravel(), yind[:-1,:-1,:].ravel(), zind[:-1,:-1,:].ravel()], data.shape)
-        ind2 = np.ravel_multi_index([xind[1:,1:,:].ravel(), yind[1:,1:,:].ravel(), zind[1:,1:,:].ravel()], data.shape)
+        ind1 = np.ravel_multi_index([xind[:-1,:-1,:].ravel(), yind[:-1,:-1,:].ravel(), zind[:-1,:-1,:].ravel()], data.shape[1:])
+        ind2 = np.ravel_multi_index([xind[1:,1:,:].ravel(), yind[1:,1:,:].ravel(), zind[1:,1:,:].ravel()], data.shape[1:])
         dist = ewf(ind1, ind2, s(spacing[0], spacing[1]), l_grad, l_eucl)
         d1cm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         d1cm = spaddtsp(d1cm)
 
         # diagonal (x,y,z)-->(x+1,y-1,z)
-        ind1 = np.ravel_multi_index([xind[1:,:-1,:].ravel(), yind[1:,:-1,:].ravel(), zind[1:,:-1,:].ravel()], data.shape)
-        ind2 = np.ravel_multi_index([xind[:-1,1:,:].ravel(), yind[:-1,1:,:].ravel(), zind[:-1,1:,:].ravel()], data.shape)
+        ind1 = np.ravel_multi_index([xind[1:,:-1,:].ravel(), yind[1:,:-1,:].ravel(), zind[1:,:-1,:].ravel()], data.shape[1:])
+        ind2 = np.ravel_multi_index([xind[:-1,1:,:].ravel(), yind[:-1,1:,:].ravel(), zind[:-1,1:,:].ravel()], data.shape[1:])
         dist = ewf(ind1, ind2, s(spacing[0], spacing[1]), l_grad, l_eucl)
         d2cm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         d2cm = spaddtsp(d2cm)
 
         # diagonal (x,y,z)-->(x+1,y,z+1)
-        ind1 = np.ravel_multi_index([xind[:-1,:,:-1].ravel(), yind[:-1,:,:-1].ravel(), zind[:-1,:,:-1].ravel()], data.shape)
-        ind2 = np.ravel_multi_index([xind[1:,:,1:].ravel(), yind[1:,:,1:].ravel(), zind[1:,:,1:].ravel()], data.shape)
+        ind1 = np.ravel_multi_index([xind[:-1,:,:-1].ravel(), yind[:-1,:,:-1].ravel(), zind[:-1,:,:-1].ravel()], data.shape[1:])
+        ind2 = np.ravel_multi_index([xind[1:,:,1:].ravel(), yind[1:,:,1:].ravel(), zind[1:,:,1:].ravel()], data.shape[1:])
         dist = ewf(ind1, ind2, s(spacing[0], spacing[2]), l_grad, l_eucl)
         d1lm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         d1lm = spaddtsp(d1lm)
 
         # diagonal (x,y,z)-->(x+1,y,z-1)
-        ind1 = np.ravel_multi_index([xind[1:,:,:-1].ravel(), yind[1:,:,:-1].ravel(), zind[1:,:,:-1].ravel()], data.shape)
-        ind2 = np.ravel_multi_index([xind[:-1,:,1:].ravel(), yind[:-1,:,1:].ravel(), zind[:-1,:,1:].ravel()], data.shape)
+        ind1 = np.ravel_multi_index([xind[1:,:,:-1].ravel(), yind[1:,:,:-1].ravel(), zind[1:,:,:-1].ravel()], data.shape[1:])
+        ind2 = np.ravel_multi_index([xind[:-1,:,1:].ravel(), yind[:-1,:,1:].ravel(), zind[:-1,:,1:].ravel()], data.shape[1:])
         dist = ewf(ind1, ind2, s(spacing[0], spacing[2]), l_grad, l_eucl)
         d2lm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         d2lm = spaddtsp(d2lm)
 
         # diagonal (x,y,z)-->(x,y+1,z+1)
-        ind1 = np.ravel_multi_index([xind[:,:-1,:-1].ravel(), yind[:,:-1,:-1].ravel(), zind[:,:-1,:-1].ravel()], data.shape)
-        ind2 = np.ravel_multi_index([xind[:,1:,1:].ravel(), yind[:,1:,1:].ravel(), zind[:,1:,1:].ravel()], data.shape)
+        ind1 = np.ravel_multi_index([xind[:,:-1,:-1].ravel(), yind[:,:-1,:-1].ravel(), zind[:,:-1,:-1].ravel()], data.shape[1:])
+        ind2 = np.ravel_multi_index([xind[:,1:,1:].ravel(), yind[:,1:,1:].ravel(), zind[:,1:,1:].ravel()], data.shape[1:])
         dist = ewf(ind1, ind2, s(spacing[1], spacing[2]), l_grad, l_eucl)
         l1cm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
         l1cm = spaddtsp(l1cm)
 
         # diagonal (x,y,z)-->(x, y+1,z-1)
-        ind1 = np.ravel_multi_index([xind[:,:-1,1:].ravel(), yind[:,:-1,1:].ravel(), zind[:,:-1,1:].ravel()], data.shape)
-        ind2 = np.ravel_multi_index([xind[:,1:,:-1].ravel(), yind[:,1:,:-1].ravel(), zind[:,1:,:-1].ravel()], data.shape)
+        ind1 = np.ravel_multi_index([xind[:,:-1,1:].ravel(), yind[:,:-1,1:].ravel(), zind[:,:-1,1:].ravel()], data.shape[1:])
+        ind2 = np.ravel_multi_index([xind[:,1:,:-1].ravel(), yind[:,1:,:-1].ravel(), zind[:,1:,:-1].ravel()], data.shape[1:])
         dist = ewf(ind1, ind2, s(spacing[1], spacing[2]), l_grad, l_eucl)
         l2cm = spsp.coo_matrix((dist, (ind1, ind2)),shape=(N,N))
         # symmetrise this edge type
@@ -147,14 +151,15 @@ if __name__ == "__main__":
     # 3D volume parameters
     shape = (42, 42, 20)
     spacing = [1., 1., 1.]
+    channels = 3
 
     # Tolerance
     epsilon = 1e-5
 
     # Creating image
-    img = np.arange(np.prod(shape))
+    img = np.arange(channels*np.prod(shape))
     np.random.shuffle(img)
-    img = img.reshape(shape)
+    img = img.reshape((channels,)+shape)
 
     # Sources (extreme points along the x axis)
     source1 = [4, 17, 9]
@@ -162,21 +167,23 @@ if __name__ == "__main__":
 
     time_nx = []
     time_dijkstra = []
+
+    # Multiinputs
     for l_grad, l_eucl in [[0, 1], [1, 0], [1, 1]]: # Test different configs
         for connectivity in [6, 18]: # Test different connectivity
             for sources in [[source1], [source1, source2]]: # Test 1 or multiple source points
                 # # Field using NX
                 t = time.time()
                 G = create_graph(img, spacing, l_grad, l_eucl, connectivity) 
-                seedind = set(np.ravel_multi_index([[seed_position[k] for seed_position in sources] for k in range(3)], img.shape))
-                field_nx = distance_field_nx(G, seedind, img.shape)
+                seedind = set(np.ravel_multi_index([[seed_position[k] for seed_position in sources] for k in range(3)],  img.shape[1:]))
+                field_nx = distance_field_nx(G, seedind, img.shape[1:])
                 time_nx.append(time.time() - t)
 
                 # Field using dijkstra3d
                 t = time.time()
                 field_dijkstra3d = dijkstra3d.distance_field(
                     data=img,
-                    prob=np.zeros_like(img),
+                    prob=np.zeros(shape),
                     source=sources, 
                     connectivity=connectivity, 
                     spacing=spacing, 

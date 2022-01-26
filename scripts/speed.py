@@ -21,6 +21,7 @@ if __name__ == "__main__":
     l_eucl = 1
     l_grad = 1
     spacing = [1, 0.5, 2]
+    channels = 3
 
     
     for N_seed in [1,10, 100, 1000]:
@@ -28,9 +29,9 @@ if __name__ == "__main__":
         for shape in tqdm([(k,k,k) for k in range(10,210,10)]):
 
             # Creating image
-            img = np.arange(np.prod(shape))
+            img = np.arange(channels*np.prod(shape))
             np.random.shuffle(img)
-            img = img.reshape(shape)
+            img = img.reshape((channels,)+shape)
 
             N_seed = np.min([N_seed,np.prod(shape)-1])
 
@@ -43,7 +44,7 @@ if __name__ == "__main__":
             t = time.time()
             field_dijkstra3d = dijkstra3d.distance_field(
                 data=img,
-                prob=np.zeros_like(img),
+                prob=np.zeros(shape),
                 source=sources, 
                 connectivity=connectivity, 
                 spacing=spacing, 

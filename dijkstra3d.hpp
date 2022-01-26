@@ -298,7 +298,7 @@ template <typename T, typename OUT = uint32_t>
 std::pair<std::vector<OUT>, float> dijkstra3d(
     T* field, 
     float* prob,
-    const size_t sx, const size_t sy, const size_t sz, 
+    const size_t sx, const size_t sy, const size_t sz, const size_t channels,
     const size_t source, const size_t target,
     const float dx, const float dy, const float dz,
     const float w_grad, const float w_eucl, const float w_prob,
@@ -386,7 +386,10 @@ std::pair<std::vector<OUT>, float> dijkstra3d(
       }
 
       neighboridx = loc + neighborhood[i];
-      delta = w_grad * abs(static_cast<float>(field[neighboridx]) - static_cast<float>(field[loc])); // high cache miss
+      delta = 0.0;
+      for (size_t p = 0; p < channels; p++) {
+        delta += w_grad * abs(static_cast<float>(field[channels*neighboridx+p]) - static_cast<float>(field[channels*loc+p])); // high cache miss
+        }
       delta += w_eucl * eucl_distance[i];
       delta += w_prob / 2. * (static_cast<float>(prob[neighboridx]) + static_cast<float>(prob[loc])) ;
 
@@ -432,7 +435,7 @@ template <typename T>
 float* distance_field3d(
     T* field, 
     float* prob,
-    const size_t sx, const size_t sy, const size_t sz, 
+    const size_t sx, const size_t sy, const size_t sz, const size_t channels,
     const std::vector<size_t> &sources,
     const float dx, const float dy, const float dz,
     const float w_grad, const float w_eucl, const float w_prob,
@@ -513,7 +516,10 @@ float* distance_field3d(
       }
 
       neighboridx = loc + neighborhood[i];
-      delta = w_grad * abs(static_cast<float>(field[neighboridx]) - static_cast<float>(field[loc])); // high cache miss
+      delta = 0.0;
+      for (size_t p = 0; p < channels; p++) {
+        delta += w_grad * abs(static_cast<float>(field[channels*neighboridx+p]) - static_cast<float>(field[channels*loc+p])); // high cache miss
+        }
       delta += w_eucl * eucl_distance[i];
       delta += w_prob / 2. * (static_cast<float>(prob[neighboridx]) + static_cast<float>(prob[loc]));
 

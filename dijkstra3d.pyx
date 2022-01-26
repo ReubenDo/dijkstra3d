@@ -45,7 +45,7 @@ cdef extern from "dijkstra3d.hpp" namespace "dijkstra":
   cdef pair[vector[OUT], float] dijkstra3d[T,OUT](
     T* field, 
     float* prob,
-    size_t sx, size_t sy, size_t sz, 
+    size_t sx, size_t sy, size_t sz, size_t channels, 
     size_t source, size_t target,
     float dx, float dy, float dz,
     float w_grad, float w_eucl, float w_prob,
@@ -58,7 +58,7 @@ cdef extern from "dijkstra3d.hpp" namespace "dijkstra":
   cdef float* distance_field3d[T](
     T* field,
     float* prob,
-    size_t sx, size_t sy, size_t sz, 
+    size_t sx, size_t sy, size_t sz, size_t channels,
     vector[size_t] source,
     float dx, float dy, float dz,
     float w_grad, float w_eucl, float w_prob,
@@ -100,11 +100,11 @@ def dijkstra(
   Returns: 1D numpy array containing indices of the path from
     source to target including source and target.
   """
-  dims = len(data.shape)
+  dims = len(data.shape) -1 # Removing channels
   if dims not in (2,3):
     raise DimensionError("Only 2D and 3D image sources are supported. Got: " + str(dims))
 
-  assert data.shape==prob.shape, "Probability map and Image must have the same shape"
+  assert data.shape[1:]==prob.shape, "Probability map and Image must have the same shape"
 
   if dims == 2:
     if connectivity == 4:
@@ -124,7 +124,7 @@ def dijkstra(
   _validate_coord(data, target)
 
   if dims == 2:
-    data = data[:, :, np.newaxis]
+    data = data[:, :, :, np.newaxis]
     prob = prob[:, :, np.newaxis]
     source = list(source) + [ 0 ]
     target = list(target) + [ 0 ]
@@ -136,9 +136,9 @@ def dijkstra(
   data = np.asfortranarray(data)
   prob = np.asfortranarray(prob)
 
-  cdef size_t cols = data.shape[0]
-  cdef size_t rows = data.shape[1]
-  cdef size_t depth = data.shape[2]
+  cdef size_t cols = data.shape[1]
+  cdef size_t rows = data.shape[2]
+  cdef size_t depth = data.shape[3]
 
   path, dists = _execute_dijkstra(
     data, prob, source, target, connectivity, spacing,
@@ -151,15 +151,15 @@ def dijkstra(
     return _path_to_point_cloud(path, dims, rows, cols)
 
 def _validate_coord(data, coord):
-  dims = len(data.shape)
+  dims = len(data.shape) - 1
 
   if len(coord) != dims:
     raise IndexError(
       "Coordinates must have the same dimension as the data. coord: {}, data shape: {}"
-        .format(coord, data.shape)
+        .format(coord, data.shape[1:])
     )
 
-  for i, size in enumerate(data.shape):
+  for i, size in enumerate(data.shape[1:]):
     if coord[i] < 0 or coord[i] >= size:
       raise IndexError("Selected voxel {} was not located inside the array.".format(coord))
 
@@ -187,13 +187,13 @@ def _execute_dijkstra(
   spacing=(1,1,1), l_grad=0.0, l_eucl=1.0, l_prob=0.0,
   voxel_graph=None
 ):
-  cdef uint8_t[:,:,:] arr_memview8
-  cdef uint16_t[:,:,:] arr_memview16
-  cdef uint32_t[:,:,:] arr_memview32
-  cdef uint64_t[:,:,:] arr_memview64
-  cdef float[:,:,:] arr_memviewfloat
+  cdef uint8_t[:,:,:,:] arr_memview8
+  cdef uint16_t[:,:,:,:] arr_memview16
+  cdef uint32_t[:,:,:,:] arr_memview32
+  cdef uint64_t[:,:,:,:] arr_memview64
+  cdef float[:,:,:,:] arr_memviewfloat
+  cdef double[:,:,:,:] arr_memviewdouble
   cdef float[:,:,:] prob_memviewfloat
-  cdef double[:,:,:] arr_memviewdouble
 
   cdef uint32_t[:,:,:] voxel_graph_memview
   cdef uint32_t* voxel_graph_ptr = NULL
@@ -201,9 +201,10 @@ def _execute_dijkstra(
     voxel_graph_memview = voxel_graph
     voxel_graph_ptr = <uint32_t*>&voxel_graph_memview[0,0,0]
 
-  cdef size_t sx = data.shape[0]
-  cdef size_t sy = data.shape[1]
-  cdef size_t sz = data.shape[2]
+  cdef size_t channels = data.shape[0]
+  cdef size_t sx = data.shape[1]
+  cdef size_t sy = data.shape[2]
+  cdef size_t sz = data.shape[3]
 
   cdef float dx = float(spacing[0])
   cdef float dy = float(spacing[1])
@@ -235,9 +236,9 @@ def _execute_dijkstra(
     arr_memviewfloat = data
     if sixtyfourbit:
       o64 = dijkstra3d[float, uint64_t](
-        &arr_memviewfloat[0,0,0],
+        &arr_memviewfloat[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink,
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -248,9 +249,9 @@ def _execute_dijkstra(
       dist_target = o64.second
     else:
       o32 = dijkstra3d[float, uint32_t](
-        &arr_memviewfloat[0,0,0],
+        &arr_memviewfloat[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink,
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -263,9 +264,9 @@ def _execute_dijkstra(
     arr_memviewdouble = data
     if sixtyfourbit:
       o64 = dijkstra3d[double, uint64_t](
-        &arr_memviewdouble[0,0,0],
+        &arr_memviewdouble[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -276,9 +277,9 @@ def _execute_dijkstra(
       dist_target = o64.second
     else:
       o32 = dijkstra3d[double, uint32_t](
-        &arr_memviewdouble[0,0,0],
+        &arr_memviewdouble[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -291,9 +292,9 @@ def _execute_dijkstra(
     arr_memview64 = data.astype(np.uint64)
     if sixtyfourbit:
       o64 = dijkstra3d[uint64_t, uint64_t](
-        &arr_memview64[0,0,0],
+        &arr_memview64[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -304,9 +305,9 @@ def _execute_dijkstra(
       dist_target = o64.second
     else:
       o32 = dijkstra3d[uint64_t, uint32_t](
-        &arr_memview64[0,0,0],
+        &arr_memview64[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -319,9 +320,9 @@ def _execute_dijkstra(
     arr_memview32 = data.astype(np.uint32)
     if sixtyfourbit:
       o64 = dijkstra3d[uint32_t, uint64_t](
-        &arr_memview32[0,0,0],
+        &arr_memview32[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -332,9 +333,9 @@ def _execute_dijkstra(
       dist_target = o64.second
     else:
       o32 = dijkstra3d[uint32_t, uint32_t](
-        &arr_memview32[0,0,0],
+        &arr_memview32[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -347,9 +348,9 @@ def _execute_dijkstra(
     arr_memview16 = data.astype(np.uint16)
     if sixtyfourbit:
       o64 = dijkstra3d[uint16_t, uint64_t](
-        &arr_memview16[0,0,0],
+        &arr_memview16[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -360,9 +361,9 @@ def _execute_dijkstra(
       dist_target = o64.second
     else:
       o32 = dijkstra3d[uint16_t, uint32_t](
-        &arr_memview16[0,0,0],
+        &arr_memview16[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -375,9 +376,9 @@ def _execute_dijkstra(
     arr_memview8 = data.astype(np.uint8)
     if sixtyfourbit:
       o64 = dijkstra3d[uint8_t, uint64_t](
-        &arr_memview8[0,0,0],
+        &arr_memview8[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -388,9 +389,9 @@ def _execute_dijkstra(
       dist_target = o64.second
     else:
       o32 = dijkstra3d[uint8_t, uint32_t](
-        &arr_memview8[0,0,0],
+        &arr_memview8[0,0,0,0],
         &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src, sink, 
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -427,12 +428,12 @@ def _execute_dijkstra(
 
 
 def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, l_eucl, l_prob, voxel_graph):
-  cdef uint8_t[:,:,:] arr_memview8
-  cdef uint16_t[:,:,:] arr_memview16
-  cdef uint32_t[:,:,:] arr_memview32
-  cdef uint64_t[:,:,:] arr_memview64
-  cdef float[:,:,:] arr_memviewfloat
-  cdef double[:,:,:] arr_memviewdouble
+  cdef uint8_t[:,:,:,:] arr_memview8
+  cdef uint16_t[:,:,:,:] arr_memview16
+  cdef uint32_t[:,:,:,:] arr_memview32
+  cdef uint64_t[:,:,:,:] arr_memview64
+  cdef float[:,:,:,:] arr_memviewfloat
+  cdef double[:,:,:,:] arr_memviewdouble
   cdef float[:,:,:] prob_memviewfloat
 
   cdef uint32_t[:,:,:] voxel_graph_memview
@@ -441,9 +442,10 @@ def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, 
     voxel_graph_memview = voxel_graph
     voxel_graph_ptr = <uint32_t*>&voxel_graph_memview[0,0,0]
 
-  cdef size_t sx = data.shape[0]
-  cdef size_t sy = data.shape[1]
-  cdef size_t sz = data.shape[2]
+  cdef size_t channels = data.shape[0]
+  cdef size_t sx = data.shape[1]
+  cdef size_t sy = data.shape[2]
+  cdef size_t sz = data.shape[3]
 
   cdef float dx = float(spacing[0])
   cdef float dy = float(spacing[1])
@@ -467,9 +469,9 @@ def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, 
   if dtype == np.float32:
     arr_memviewfloat = data
     dist = distance_field3d[float](
-      &arr_memviewfloat[0,0,0],
+      &arr_memviewfloat[0,0,0,0],
       &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src,  
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -480,9 +482,9 @@ def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, 
   elif dtype == np.float64:
     arr_memviewdouble = data
     dist = distance_field3d[double](
-      &arr_memviewdouble[0,0,0],
+      &arr_memviewdouble[0,0,0,0],
       &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src,  
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -492,9 +494,9 @@ def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, 
   elif dtype in (np.int64, np.uint64):
     arr_memview64 = data.astype(np.uint64)
     dist = distance_field3d[uint64_t](
-      &arr_memview64[0,0,0],
+      &arr_memview64[0,0,0,0],
       &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src,  
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -504,9 +506,9 @@ def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, 
   elif dtype in (np.uint32, np.int32):
     arr_memview32 = data.astype(np.uint32)
     dist = distance_field3d[uint32_t](
-      &arr_memview32[0,0,0],
+      &arr_memview32[0,0,0,0],
       &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src,  
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -516,9 +518,9 @@ def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, 
   elif dtype in (np.int16, np.uint16):
     arr_memview16 = data.astype(np.uint16)
     dist = distance_field3d[uint16_t](
-      &arr_memview16[0,0,0],
+      &arr_memview16[0,0,0,0],
       &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src,  
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -528,9 +530,9 @@ def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, 
   elif dtype in (np.int8, np.uint8, bool):
     arr_memview8 = data.astype(np.uint8)
     dist = distance_field3d[uint8_t](
-      &arr_memview8[0,0,0],
+      &arr_memview8[0,0,0,0],
       &prob_memviewfloat[0,0,0],
-        sx, sy, sz,
+        sx, sy, sz, channels,
         src,  
         dx, dy, dz,
         w_grad, w_eucl, w_prob,
@@ -548,7 +550,7 @@ def _execute_distance_field(data, prob, sources, connectivity, spacing, l_grad, 
   buf = bytearray(dist_view[:])
   free(dist)
   # I don't actually understand why order F works, but it does.
-  return np.frombuffer(buf, dtype=np.float32).reshape(data.shape, order='F')
+  return np.frombuffer(buf, dtype=np.float32).reshape(data.shape[1:], order='F')
 
 
 def distance_field(data, prob, source, connectivity=26, spacing=(1,1,1), l_grad=0.0, l_eucl=1.0, l_prob=0.0, voxel_graph=None):
@@ -574,11 +576,11 @@ def distance_field(data, prob, source, connectivity=26, spacing=(1,1,1), l_grad=
   Returns: 2D or 3D numpy array with each index
     containing its distance from the source voxel.
   """
-  dims = len(data.shape)
+  dims = len(data.shape) - 1 #Remove channel
   if dims not in (2,3):
     raise DimensionError("Only 2D and 3D image sources are supported. Got: " + str(dims))
 
-  assert data.shape==prob.shape, "Probability map and Image must have the same shape"
+  assert data.shape[1:]==prob.shape, "Probability map and Image must have the same shape (not counting channel)"
 
   if dims == 2:
     if connectivity == 4:
