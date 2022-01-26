@@ -128,7 +128,7 @@ def dijkstra(
     prob = prob[:, :, np.newaxis]
     source = list(source) + [ 0 ]
     target = list(target) + [ 0 ]
-    print(prob.shape)
+    spacing = spacing + [1]
 
   if voxel_graph is not None:
     voxel_graph = format_voxel_graph(voxel_graph)
@@ -583,6 +583,7 @@ def distance_field(data, prob, source, connectivity=26, spacing=(1,1,1), l_grad=
   assert data.shape[1:]==prob.shape, "Probability map and Image must have the same shape (not counting channel)"
 
   if dims == 2:
+    spacing = spacing + [1]
     if connectivity == 4:
       connectivity = 6
     elif connectivity == 8:
@@ -605,7 +606,7 @@ def distance_field(data, prob, source, connectivity=26, spacing=(1,1,1), l_grad=
     tmp = np.zeros((source.shape[0], 3), dtype=np.uint64)
     tmp[:, :source.shape[1]] = source[:,:]
     source = tmp
-  while data.ndim < 3:
+  while data.ndim < 3 + 1:
     data = data[..., np.newaxis]
     prob = prob[..., np.newaxis]
 
